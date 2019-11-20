@@ -31,7 +31,7 @@ compresses/decompresses HTML template.
 
 import re
 import sys
-import logging
+# import logging
 import os
 
 # TO DO: logging
