@@ -48,7 +48,7 @@ _rm = lambda reg: re.compile(reg, re.MULTILINE)
 # tag map for major in-tag structures
 # order of `item` regex'es MATTERS A LOT SO DO NOT CHANGE THAT
 # AND BE CAREFUL ABOUT WHAT YOU WISH FOR REGEX TO MATCH
-tag_map1 = {
+majortag_map = {
     r"^head1[\s\t\r]+": (re.compile(r"[^\n]*"), "<h1>*</h1>"),
     r"^head2[\s\t\r]+": (re.compile(r"[^\n]*"), "<h2>*</h2>"),
     r"^head3[\s\t\r]+": (re.compile(r"[^\n]*"), "<h3>*</h3>"),
@@ -70,7 +70,7 @@ tag_map1 = {
 }
 
 # tag map for minor in-tag structures
-tag_map2 = {
+minortag_map = {
     r"B\<+[\s\S]*\>+": "<b>*</b>",
     r"C\<+[\s\S]*\>+": "<a style=\"font-family: monospace; background-color: #f0f0f0;\">*</a>",
     r"E\<+[\s\S]*\>+": "&*;",
@@ -260,7 +260,7 @@ class _tag_:
     string cuts.
     """
     def __init__(self, context="", tag_start=r"[A-Z]\<", tag_stop=r"\>",
-                 left_delim=r"\<", right_delim=r"\>", tag_map=tag_map2):
+                 left_delim=r"\<", right_delim=r"\>", tag_map=minortag_map):
         self.context = context
         self.start = len(self.context)
         self.stop = len(self.context)
@@ -563,24 +563,24 @@ def get_match(pattern, string, regex=re.match):
         return ""
 
 
-def minor_tag(string, tag_map=tag_map2):
+def minor_tag(string, tag_map=minortag_map):
     """
     `minor_tag`
     ===
     Converting strings with X<> structured tag according to tag_map
-    (`tag_map2`).
+    (`minortag_map`).
 
     For more information read docstrings and comments inside `_tag_` class.
     """
     element = _tag_(string, tag_map=tag_map)
     #       converting element according to default settings of _tag_
-    #       constructor and `tag_map2` mapping variable
+    #       constructor and `minortag_map` mapping variable
     element.convert()
     #       returning converted string
     return str(element)
 
 
-def major_tag(string, tag_map=tag_map1):
+def major_tag(string, tag_map=majortag_map):
     """
     `major_tag`
     ===
