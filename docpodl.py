@@ -39,38 +39,57 @@ TYPE name {
 }
 
 so it's a nested JSON-like structure, however IT IS NOT JSON.
+Lines starting with # will be ignored in preprocessing.
+
+name:
+^[A-Z]+[\s]*[A-Z]+
+
+
 """
 
+storables_reg = r"[A-Z]+?[\s\S]+?\{+[\s\S]*\}+"
+header_reg = r"(?<=\b)[^\n]+?(?=\s\{)"
+
 storables_map = {
-    
+    r"(?=(^STORABLE CLASS)[\s\S]+?\{+[\s\S]*\}+": "<div class=\"storable_class\">*</div>",
+    r"INT [\s\S]+?\{+[\s\S]*\}+": "<div class=\"integer\">*</div>",
+    r"DECIMAL [\s\S]+?\{+[\s\S]*\}+": "<div class=\"float\">*</div>",
+    r"STRING [\s\S]+?\{+[\s\S]*\}+": "<div class=\"string\">*</div>",
+    r"ENUM [\s\S]+?\{+[\s\S]*\}+": "<div class=\"enum\">*</div>",
+    r"SUBSTRUCT [\s\S]+?\{+[\s\S]*\}+": "<div class=\"enum\">*</div>",
+    r"[A-Z]+ [\s\S]+?\{+[\s\S]*\}+": "<div class=\"non_recognized_class\">*</div>"
 }
 
-
-walker = os.walk(os.path.normpath(sys.argv[1]))
-podl_files = []
-for p, d, f in walker:
-    # print("".join(f))
-    if re.search(r"\.podl", "".join(f)) is not None:
-        print(f)
-        for fl in f:
-            if re.search(r"\.podl$", fl):
-                print(os.path.join(p, fl))
-                podl_files += [os.path.join(p, fl)]
-                # break
-        # break
-if type(podl_files) in [tuple, list]:
-    print(f"Podl files: {len(podl_files)}")
-for the_podl in podl_files:
-    podl_def = ""
+def main(path):
+    # SEARCHING FOR PODL_ZZZ
+    # walker = os.walk(os.path.normpath(path))
+    # podl_files = []
+    # for p, d, f in walker:
+    #     # print("".join(f))
+    #     if re.search(r"\.podl", "".join(f)) is not None:
+    #         # print(f)
+    #         for fl in f:
+    #             if re.search(r"\.podl$", fl):
+    #                 # print(os.path.join(p, fl))
+    #                 podl_files += [os.path.join(p, fl)]
+    #                 # break
+    #         # break
+    # # print(f"Podl files: {len(podl_files)}")
+    # for the_podl in podl_files:
+    #     podl_def = ""
     try:
-        # the_podl = podl_files[0]
+        the_podl = path
         with open(the_podl, 'r', encoding='utf-8') as fstream:
             podl_def = fstream.read()
     except FileNotFoundError:
-        print(f"This file was not found: {the_podl}")
-        exit()
+        print(f"File not found: {the_podl}")
+        # exit()
+    # print(the_podl)
+    podl_def = re.sub(r"\#[^\n]*(\n|$)", "", podl_def)
+    def1 = docpod._tag_(podl_def, r'(?<=\b)[^\n]+?\{', r'\}', r'\{', r'\}', storables_map)
+    print(def1.convert())
+    exit()
 
-    podls = re.findall(re.compile(r"^[\s\S]+?\{[\s\S]+?\}", re.MULTILINE), podl_def)
-    the_podl_file = the_podl.split("\\")[-1]
-    print(f"{the_podl_file}: {len(podls)} definitions")
-    print(podls[0])
+if __name__ == "__main__":
+    main("C:/Users/robert.rasala/Documents/OBRM/brm/base/datamodel/podl/class/batch_tp_payment.podl")
+    # main(sys.argv[1])

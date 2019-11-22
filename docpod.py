@@ -283,13 +283,15 @@ class _tag_:
                             self.context[self.stop:]]
                 if re.search(_rm(tag_start+r"+[\s\S]*"+tag_stop+r"+"),
                              self.content) is not None:
-                    self.child = _tag_(self.content)
+                    self.child = _tag_(self.content, tag_start, tag_stop, left_delim,
+                                       right_delim, tag_map)
                 else:
                     self.content = self.content.translate(html_spec)
                 for n in range(len(self.env)):
                     if re.search(_rm(tag_start+r"+[\s\S]*"+tag_stop+r"+"),
                                  self.env[n]) is not None:
-                        self.neighbour += [_tag_(self.env[n])]
+                        self.neighbour += [_tag_(self.env[n], tag_start, tag_stop,
+                                                 left_delim, right_delim, tag_map)]
                     else:
                         self.env[n] = self.env[n].translate(html_spec)
                         self.neighbour += [None]
@@ -944,7 +946,7 @@ def document(arg=""):
             return std_file
 
 if __name__=="__main__":
-    print(document("C:/Users/robert.rasala/Desktop/BRM/brm/base/apps/tp_bill/tp_bill.pl"))
+    print(document("C:/Users/robert.rasala/Document/OBRM/brm/base/apps/tp_bill/tp_bill.pl"))
     # try:
     #     print(document(sys.argv[1]))
     # except IndexError:
