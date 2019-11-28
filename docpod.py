@@ -946,8 +946,7 @@ def document(arg=""):
             return std_file
 
 if __name__=="__main__":
-    print(document("C:/Users/robert.rasala/Document/OBRM/brm/base/apps/tp_bill/tp_bill.pl"))
-    # try:
-    #     print(document(sys.argv[1]))
-    # except IndexError:
-    #     print(main(""))
+    try:
+        print(document(sys.argv[1]))
+    except IndexError:
+        print(document(""))

@@ -91,5 +91,4 @@ def main(path):
     exit()
 
 if __name__ == "__main__":
-    main("C:/Users/robert.rasala/Documents/OBRM/brm/base/datamodel/podl/class/batch_tp_payment.podl")
     # main(sys.argv[1])
