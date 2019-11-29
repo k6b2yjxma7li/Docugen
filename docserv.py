@@ -24,13 +24,12 @@ Robert K. Rasała
 
 Accenture
 
-October/November 2019
+October 2019
 """
 
 import socket
 import sys
 import os
-import subprocess
 import re
 import time
 import docpod
@@ -52,7 +51,9 @@ while True:
         try:
             main_dir = sys.argv[1]
         except IndexError:
-            main_dir = "./"
+            # main_dir = "./"
+            print(__doc__)
+            exit()
         main_dir = os.path.join("", main_dir, "")
         main_dir = main_dir.translate(docpod.dictionary)
         abs_main_dir = os.path.abspath(main_dir).translate(docpod.dictionary)
@@ -111,12 +112,16 @@ while True:
                             c.close()
                             print(f"{addr}: Index of {target} ({time.process_time()-srt}s)")
                         else:
-                            send_html_frame(c)
                             c.send(bytearray(docpod.document(main_dir+target), encoding="utf-8"))
                             c.close()
                             print(f"{addr}: Unknown path: {main_dir + target} ({time.process_time()-srt}s)")
                 except BrokenPipeError:
                     pass
+                except UnicodeDecodeError as e:
+                    print(str(e))
+                    c.send(bytearray(str(e), encoding='utf-8'))
+                    c.send(b'<p><a href="../">Back to folder index</a><br>\n<a href="/">Back to main index</a></p>')
+                    c.close()
                 
         except KeyboardInterrupt:
             c.close()

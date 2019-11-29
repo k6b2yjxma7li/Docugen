@@ -102,93 +102,30 @@ no_content = """no CONTENT special comment tags detected. Without it content can
 be inserted.\n*"""
 no_doc = """no convertible documentation detected.\n*"""
 
-
-#   HTML styles for pages
-style = """
-        html {
-            font-family: Calibri, "Helvetica", sans-serif;
-            font-size: 14px;
-        }
-        h1:after, h2:after, h3:after {
-            content: ' ';
-            display: block;
-            border: 2px solid #d0d0d0;
-        }
-        h1 {
-            font-size: 1.7em;
-        }
-        h2 {
-            font-size: 1.5em;
-        }
-        h3 {
-            font-size: 1.3em;
-        }
-        h4 {
-            font-size: 1.1em;
-        }
-        .collapsible {
-            background-color: #777;
-            color: white;
-            cursor: pointer;
-            padding: 18px;
-            width: 100%;
-            border: none;
-            text-align: left;
-            outline: none;
-            font-size: 15px;
-        }
-        .collapse {
-            background-color: #777;
-            color: white;
-            cursor: pointer;
-            padding: 18px;
-            width: 100%;
-            border: none;
-            text-align: left;
-            outline: none;
-            font-size: 15px;
-        }
-        .active, .collapsible:hover, .collapse:hover {
-            background-color: #555;
-        }
-        .content {
-            padding: 0 18px;
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.5s ease-out;
-            background-color: #f1f1f1;
-        }
-        .line_enum {
-            font-family: monospace;
-            width: 4%;
-            float: left;
-            text-align: right;
-            font-size: 10px;
-            color: #fff;
-            background-color: #909090;
-        }
-        .code {
-            font-family: monospace;
-            width: 95%;
-            float: right;
-            font-size: 10px;
-        }
-        #container {
-            width: 100%;
-        }
-        #left_side {
-            width: 27%;
-            float: left;
-        }
-        #right_side {
-            width: 73%;
-            float: right;
-        }
-"""
+no_css_file = """`docstyle.css` CSS file not included in server directory. Page may not
+work properly.\n*"""
 
 
 #       JS scripts for pages
 script = """
+upperCollapse = function(elem) {
+    elem.classList.toggle("active");
+    let content = elem.nextElementSibling;
+    if (content.style.maxHeight){
+        content.style.maxHeight = null;
+    } else {
+        content.style.maxHeight = content.scrollHeight + "px";
+    }
+}
+
+lowerCollapse = function(elem) {
+    elem.classList.toggle("active");
+    let content = this.parentElement;
+    if (content.style.maxHeight){
+        content.style.maxHeight = null;
+    }
+}
+
 let coll = document.getElementsByClassName("collapsible");
 let recoll = document.getElementsByClassName("collapse");
 let i;
@@ -215,6 +152,97 @@ for (let i = 0; i<recoll.length; i++) {
 """
 
 
+# default style sheets if css not included
+style = """
+html {
+    font-family: Calibri, "Helvetica", sans-serif;
+    font-size: 14px;
+}
+h1:after, h2:after, h3:after {
+    content: ' ';
+    display: block;
+    border: 2px solid #d0d0d0;
+}
+h1 {
+    font-size: 1.7em;
+}
+h2 {
+    font-size: 1.5em;
+}
+h3 {
+    font-size: 1.3em;
+}
+h4 {
+    font-size: 1.1em;
+}
+.collapsible {
+    background-color: #777;
+    color: white;
+    cursor: pointer;
+    padding: 18px;
+    width: 100%;
+    border: none;
+    text-align: left;
+    outline: none;
+    font-size: 15px;
+}
+.collapse {
+    background-color: #777;
+    color: white;
+    cursor: pointer;
+    padding: 18px;
+    width: 100%;
+    border: none;
+    text-align: left;
+    outline: none;
+    font-size: 15px;
+}
+.active, .collapsible:hover, .collapse:hover {
+    background-color: #555;
+}
+.content {
+    padding: 0 18px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.5s ease-out;
+    background-color: #f1f1f1;
+}
+.line_enum {
+    font-family: monospace;
+    width: 4%;
+    float: left;
+    text-align: right;
+    font-size: 10px;
+    color: #fff;
+    background-color: #909090;
+}
+.code {
+    font-family: monospace;
+    width: 95%;
+    float: right;
+    font-size: 10px;
+}
+#container {
+    width: 100%;
+}
+#left_side {
+    width: 30%;
+    float: left;
+}
+#right_side {
+    width: 69%;
+    float: right;
+}
+li {
+    margin: 5px 0;
+}
+ol, ul {
+    white-space: nowrap;
+    overflow-x: scroll;
+}
+"""
+
+
 # standard documentation file
 standard_file = """<!--ERRORS:0
 *ERRORS-->
@@ -223,8 +251,7 @@ standard_file = """<!--ERRORS:0
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>"""+style+"""
-    </style>
+    <style>"""+style+"""</style>
 </head>
 <body>
     <!--CONTENT-->
@@ -875,7 +902,7 @@ def file_list(directory=".", ext=""):
     return files, files_with_path
 
 
-def document(arg=""):
+def document(path=""):
     """
     `document`
     ===
@@ -887,18 +914,33 @@ def document(arg=""):
     global no_header
     global no_index
     global no_indexed
+    global style
     content = ""
+    #   getting styles
     try:
-        with open(arg, "r", encoding="utf-8") as f_stream:
+        with open("docstyle.css") as css:
+            local_style = css.read()
+    except FileNotFoundError:
+        std_file = update_errors(std_file, no_css_file)
+        local_style = style
+    #   main part
+    try:
+        #   reading file
+        with open(path, "r") as f_stream:
             pod_string = f_stream.read()
+        #   splitting on POD blocks
         pod_document = re.split(re.compile(r"^\=", re.MULTILINE),
                                 pod_string)
-        doc_len = sum(1 for line in open(arg, encoding="utf-8"))
+        #   line counter
+        doc_len = sum(1 for line in open(path))
+        #   translating HTML special characters
         code_str = pod_string.translate(html_spec)
         content += f"""<a href="/">Main index</a>&nbsp;<a href="./">Folder index</a>"""
+        #   adding code as collapsible
         code_html = collapsible("+ Code", code(code_str, doc_len))
+        #   if there is no inner documentation in POD style
         if len(pod_document) == 1:
-            content += "<h1>FILE: "+arg+"</h1>"
+            content += "<h1>FILE: "+path+"</h1>"
             content += code_html
             std_file = update_errors(std_file, no_doc)
         else:
@@ -907,36 +949,43 @@ def document(arg=""):
         for n in range(len(pod_document)):
             content += major_tag(_tag_(pod_document[n]).convert())+"\n"
         std_file_split = std_file.split("<!--CONTENT-->")
+        #   if adding content is not successful
         if len(std_file_split) == 1:
             std_file = "".join(std_file_split)
             std_file = update_errors(std_file, no_content)
         else:
             std_file = content.join(std_file_split)
         header = re.search(r"(?<=\<h1\>)[\s\S]+?(?=\<\/h1\>)", std_file)
+        #   error logging into HTML
         if header is not None and get_err_no(std_file) != 0:
             header = get_match(r"\<h1\>[\s\S]+?<\/h1\>", std_file, re.search)
             header += "\n<u>Some errors occurred. Check file source for more info.</u><br>\n"
-            std_file = re.sub(r"\<h1\>[\s\S]+?\<\/h1\>", header, std_file)
+            std_file = re.sub(r"\<h1\>[\s\S]+?\<\/h1\>", header, std_file, 1)
         # else:
         return std_file
+    #   for FNF Error
     except FileNotFoundError:
-        content += f"<b>File not found: {arg}</b><br>\n"
+        content += f"<b>File not found: {path}</b><br>\n"
         content += """<a href="/"><<< Back to main page</a><br>\n"""
         content += line_breaker(__doc__, "\n") + "\n"
         std_file = std_file.split("<!--CONTENT-->")
+        #   error logging into HTML
         if len(std_file) == 1:
             std_file = "".join(std_file)
             std_file = update_errors(std_file, no_content)
         else:
             std_file = content.join(std_file)
         return std_file
+    #   sometimes trying to open dir raises PermissionError
     except (PermissionError, IsADirectoryError):
-        if os.path.isdir(arg):
+        if os.path.isdir(path):
             return std_file
         else:
-            content += f"<b>Permission denied for a file: {arg}</b><br>\n"
+            #   however sometimes it's just a PermErr
+            content += f"<b>Permission denied for a file: {path}</b><br>\n"
             content += """<a href="/"><<< Back to main page</a><br>\n"""
             content += line_breaker(__doc__, "\n") + "\n"
+            #   error logging into HTML
             std_file = std_file.split("<!--CONTENT-->")
             if len(std_file) == 1:
                 std_file = "".join(std_file)
