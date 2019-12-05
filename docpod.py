@@ -76,7 +76,8 @@ minortag_map = {
     r"E\<+[\s\S]*\>+": "&*;",
     r"F\<+[\s\S]*\>+": "<i class=\"file\">*</i>",
     r"I\<+[\s\S]*\>+": "<i>*</i>",
-    r"L\<+[\s\S]*\>+": "<a href=\"\">*</a>"
+    r"L\<+[\s\S]*\>+": "<a href=\"\">*</a>",
+    r"S\<+[\s\S]*\>+": "*"
 }
 
 # html special characters dictionary
@@ -240,6 +241,9 @@ ol, ul {
     white-space: nowrap;
     overflow-x: scroll;
 }
+p {
+    margin-left: 10px;
+}
 """
 
 
@@ -288,6 +292,7 @@ class _tag_:
     """
     def __init__(self, context="", tag_start=r"[A-Z]\<", tag_stop=r"\>",
                  left_delim=r"\<", right_delim=r"\>", tag_map=minortag_map):
+        # self.context = context.replace("\\", "\\\\")
         self.context = context
         self.start = len(self.context)
         self.stop = len(self.context)
@@ -556,7 +561,8 @@ class _tag_:
             if _tag_type is not None:
                 #       if `_tag_type` is not None, conversion takes place
                 # self.content = self.content.translate(html_spec)
-                self.__tag__ = re.sub(_rm(r"\*"), self.content, val)
+                # self.__tag__ = re.sub(_rm(r"\*"), self.content, val)
+                self.__tag__ = val.replace("*", self.content)
                 #       after converting `self.__tag__` to new shape there
                 #       is a need to return context with changes; however
                 #       context must contain converted neighbours as well:
@@ -616,6 +622,7 @@ def major_tag(string, tag_map=majortag_map):
     Extracts string values for in-tag HTML construction and creates
     structure with proper content to be used in HTML document.
     """
+    # string = string.replace(, "\\\\")
     for key, val in tag_map.items():
         #       looking for a matching major tag (in one line)
         match = get_match(key, string)
@@ -625,13 +632,16 @@ def major_tag(string, tag_map=majortag_map):
             string = re.sub(re.compile(key), "", string)
             intag = get_match(val[0], string, re.search)
             rest = string.strip(intag)
-            rest = re.sub(_rm(r"^\n\n"), "\n", rest)
+            rest = re.sub(_rm(r"\t"), "&nbsp;&nbsp;&nbsp;", rest)
+            rest = re.sub(_rm(r"  "), "&nbsp;&nbsp;", rest)
+            rest = re.sub(_rm(r"^\n\n"), "", rest)
+            rest = re.sub(_rm(r"\n"), "<br>\n", rest)
             try:
                 return (re.sub(re.compile(r"\*"), intag, val[1])
-                        + clean(line_breaker(rest), left=False))
+                        + "<p>\n" + line_breaker(rest) +"\n</p>\n")
             except re.error:
                 return (clean(intag).join(val[1].split("*"))
-                        + clean(line_breaker(rest), left=False))
+                        + "<p>\n"+ line_breaker(rest) + "\n</p>\n")
     return ""
 
 
@@ -906,7 +916,7 @@ def document(path=""):
     """
     `document`
     ===
-    Extract POD from a file and convert to HTML output
+    Extract POD from a file and convert to HTML output.
     """
     global standard_file
     std_file = standard_file

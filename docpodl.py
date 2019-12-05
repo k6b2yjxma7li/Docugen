@@ -2,16 +2,15 @@
 """
 `docpodl`
 ===
-Creating documentation of PODL files that specify data model for Oracle BRM.
-PODL files have in fact structure of JSON. Additional info is stored inside
-CSV file. Script reads CSV file, finds corresponding PODL and merges data to
-generate documentation. 
+Creating documentation of PODL files that specify data model for Oracle BRM. PODL files have
+in fact structure of JSON. Additional info is stored inside CSV file. Script reads CSV file,
+finds corresponding PODL and merges data to generate documentation. 
 """
 import os
 import re
 import json
 import sys
-import docpod
+# import docpod
 import csv
 # import logging
 
@@ -63,47 +62,212 @@ storables_map = {
     r"[A-Z]+ [\s\S]+?\{+[\s\S]*\}+": "<div class=\"non_recognized_class\">*</div>"
 }
 
-def csv2table(csv_file, is_header=True, delim=","):
+
+#   Basic name map if fieldmap.json not specified
+namemap = {
+    "class.csv":
+    {
+        "NAZWA_KLASY": "Class name",
+        "OPIS": "Description",
+        "SEQ_START": "Sequence start",
+        "READ_ACCESS": "Read access",
+        "WRITE_ACCESS": "Write access",
+        "IS_PARTITIONED": "Partitioning",
+        "PARTITION_MODE": "Part. mode"
+    },
+    "class_fields.csv":
+    {
+    }
+}
+
+
+class csv_class:
     """
-    csv2table
+    class `csv_class`
     ===
-    Create HTML table from CSV formatted data, that 
+    Class created from CSV class files.
     """
-    pass
-    # csv.DictReader(csv_file, delim=",")
+    
+    def __init__(self, csv_class_block, delim=";", level=0):
+        """
+        `csv_class.__init__`
+        ===
+        Constructor of `csv_class`
+        ---
+        """
+        self.level = level
+        header = list(csv_class_block.keys())
+        f_line = [csv_class_block[h][0] for h in header]
+        self.name = csv_class_block[header[0]][0]
+        self.parameters = dict(zip(header[4-self.level:], f_line[4-self.level:]))
+        for h in header:
+            csv_class_block[h].pop(0)
+        csv_class_block.pop(header[0])
+        if self.level < 3 and len(csv_class_block[header[-1]]) > 0:
+            self.fields, _ = csv_class.get_classes(None, csv_class_block, level=self.level+1)
+        else:
+            self.fields = []
+
+    def __str__(self):
+        """
+        `csv_class.__str__`
+        ===
+        String representation of `csv_class` object
+        ---
+        """
+        result = f"name:\t{self.name}\n"
+        result += f"descr.:\t{self.parameters['OPIS']}\n"
+        params = str(self.parameters).replace("\\n", '\n\t')
+        params = params.replace("', '", "',\n\t'")
+        result += f"params:\t{params}\n"
+        if len(self.fields) > 0:
+            field_names = f"fields: (total: {len(self.fields)})\n\n\t"
+            for field in self.fields:
+                field_names += str(field).replace('\n', '\n\t')+"\n\t"
+            result += field_names
+        return result
+
+    @staticmethod
+    def split_table(csv_stream, delim=";"):
+        """
+        `csv_class.split_table`: static
+        ===
+        Partitioning CSV table by values in first column
+        ---
+        File's generator equivalent to `csv_class.split_dict`.
+        """
+        csv_reader = csv.DictReader(csv_stream, delimiter=delim)
+        n = 0
+        breaker = True
+        while breaker:
+            f_line = dict(next(csv_reader)) # first line of class
+            colname = list(f_line.keys())   # names of columns
+            line = f_line.copy()    # first line (dict)
+            const_lines = dict([[k, []] for k,v in line.items()])  # all lines within class
+            while line[colname[0]] == f_line[colname[0]]:
+                for k, v in line.items():
+                    const_lines[k] += [v]
+                try:
+                    line = dict(next(csv_reader))
+                except StopIteration:
+                    breaker = False
+                    break
+            # print(const_lines)
+            n += 1
+            yield n, const_lines
+
+    @staticmethod
+    def split_dict(csv_dict, level=0):
+        """
+        `csv_class.split_dict`: static
+        ===
+        Partitioning dict of lists by value under first key
+        ---
+        Dict equivalent to `csv_class.split_table`.
+        """
+        n = 0
+        breaker = True
+        while breaker:
+            # first line of class
+            f_line = dict([[h, csv_dict[h][n]] for h in list(csv_dict.keys())])
+            colname = list(f_line.keys())   # names of columns
+            line = f_line.copy()    # first line (dict)
+            const_lines = dict([[k, []] for k,v in line.items()])  # all lines within class
+            while line[colname[0]] == f_line[colname[0]]:
+                for k, v in line.items():
+                    const_lines[k] += [v]
+                try:
+                    n += 1
+                    line = dict([[h, csv_dict[h][n]] for h in list(csv_dict.keys())])
+                except IndexError:
+                    breaker = False
+                    break
+            yield n, const_lines
+
+    @staticmethod
+    def get_classes(csv_stream=None, csv_dict=None, delim=";", level=0):
+        """
+        `csv_class.get_classes`: static
+        ===
+        Creating list of classes
+        ---
+        From `csv_stream` (file's generator) or `csv_dist` (dict of lists) proper classes are 
+        selected. One of first two arguments is a generator from `csv_class.split_table` or
+        `csv_class.split_dict` (could be any object of matching type as yielded from those
+        methods as well).
+        """
+        result = []
+        names = []
+        if csv_stream is None and csv_dict is None:
+            raise ValueError("One of arguments `csv_stream` or `csv_dict` not specified")
+        if csv_stream is not None:
+            csv_iter = csv_class.split_table(csv_stream, delim=delim)
+        else:
+            csv_iter = csv_class.split_dict(csv_dict)
+        for _, block in csv_iter:
+            result.append(csv_class(block, level=level))
+            names.append(result[-1].name)
+        return result, names
 
 
-def main(path):
-    pass
-    # SEARCHING FOR PODL_ZZZ
-    # walker = os.walk(os.path.normpath(path))
-    # podl_files = []
-    # for p, d, f in walker:
-    #     # print("".join(f))
-    #     if re.search(r"\.podl", "".join(f)) is not None:
-    #         # print(f)
-    #         for fl in f:
-    #             if re.search(r"\.podl$", fl):
-    #                 # print(os.path.join(p, fl))
-    #                 podl_files += [os.path.join(p, fl)]
-    #                 # break
-    #         # break
-    # # print(f"Podl files: {len(podl_files)}")
-    # for the_podl in podl_files:
-    #     podl_def = ""
-    # try:
-    #     the_podl = path
-    #     with open(the_podl, 'r', encoding='utf-8') as fstream:
-    #         podl_def = fstream.read()
-    # except FileNotFoundError:
-    #     print(f"File not found: {the_podl}")
-    #     # exit()
-    # # print(the_podl)
-    # podl_def = re.sub(r"\#[^\n]*(\n|$)", "", podl_def)
-    # def1 = docpod._tag_(podl_def, r'(?<=\b)[^\n]+?\{', r'\}', r'\{', r'\}', storables_map)
-    # print(def1.convert())
-    # exit()
+def json2dict(json_path):
+    """
+    `json2dict`
+    ===
+    Dict from specified in json_path file
+    ---
+    """
+    nmap = {}
+    try:
+        with open(json_path) as jsonfile:
+            nmap = json.loads(jsonfile.read())
+    except FileNotFoundError:
+        global namemap
+        nmap = namemap
+    return nmap
+
+
+def set_namemap(nmap):
+    """
+    `set_namemap`
+    ===
+    Seting global value of `namemap`
+    ---
+    `namemap` specifies how column names from CSV file are translated
+    in tables.
+    """
+    global namemap
+    namemap = nmap
+
+
+def get_podls(mainpath="."):
+    """
+    `get_podls`
+    ===
+    Creates generator which contains path and name of each PODL file
+    found in directory passed as argument.
+    """
+    filetree = os.walk(mainpath)
+    def return_podl_path():
+        for pth, dr, fl in filetree:
+            for f in fl:
+                if ".podl" in f:
+                    yield pth, f
+    return return_podl_path()
+
+
+def make_reference(podl_name):
+    """
+    `make_reference`
+    ===
+    Finds class in CSV files and creates a dict of it by name of
+    PODL equivalent.
+    """
+
 
 if __name__ == "__main__":
-    pass
-    # main(sys.argv[1])
+    path = input("Specify path for CSV file: ")
+    print(path)
+    podl, name = csv_class.get_classes(open(path, encoding='utf-8', newline=""))
+    class_name = input("Specify class name: ")
+    print(podl[name.index(class_name)])
