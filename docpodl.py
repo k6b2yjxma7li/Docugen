@@ -80,30 +80,31 @@ namemap = {
     }
 }
 
-
 class csv_class:
     """
     class `csv_class`
     ===
-    Class created from CSV class files.
+    CSV specified data model classes
+    ---
     """
-    
-    def __init__(self, csv_class_block, delim=";", level=0):
+    def __init__(self, csv_class_block, delim=";", level=0, max_level=3):
         """
         `csv_class.__init__`
         ===
         Constructor of `csv_class`
         ---
         """
-        self.level = level
+        max_level = int(max_level)
+        self.level = int(level)
         header = list(csv_class_block.keys())
         f_line = [csv_class_block[h][0] for h in header]
         self.name = csv_class_block[header[0]][0]
-        self.parameters = dict(zip(header[4-self.level:], f_line[4-self.level:]))
+        self.parameters = dict(zip(header[max_level+1-self.level:],
+                                   f_line[max_level+1-self.level:]))
         for h in header:
             csv_class_block[h].pop(0)
         csv_class_block.pop(header[0])
-        if self.level < 3 and len(csv_class_block[header[-1]]) > 0:
+        if self.level < max_level and len(csv_class_block[header[-1]]) > 0:
             self.fields, _ = csv_class.get_classes(None, csv_class_block, level=self.level+1)
         else:
             self.fields = []
@@ -116,7 +117,8 @@ class csv_class:
         ---
         """
         result = f"name:\t{self.name}\n"
-        result += f"descr.:\t{self.parameters['OPIS']}\n"
+        if 'OPIS' in self.parameters.keys():
+            result += f"descr.:\t{self.parameters['OPIS']}\n"
         params = str(self.parameters).replace("\\n", '\n\t')
         params = params.replace("', '", "',\n\t'")
         result += f"params:\t{params}\n"
@@ -139,16 +141,23 @@ class csv_class:
         csv_reader = csv.DictReader(csv_stream, delimiter=delim)
         n = 0
         breaker = True
+        endborder = False
         while breaker:
-            f_line = dict(next(csv_reader)) # first line of class
+            if not(endborder):
+                f_line = dict(next(csv_reader)) # first line of class
+            endborder = False
             colname = list(f_line.keys())   # names of columns
             line = f_line.copy()    # first line (dict)
             const_lines = dict([[k, []] for k,v in line.items()])  # all lines within class
-            while line[colname[0]] == f_line[colname[0]]:
+            while True:
                 for k, v in line.items():
                     const_lines[k] += [v]
                 try:
                     line = dict(next(csv_reader))
+                    if not(line[colname[0]] == f_line[colname[0]]):
+                        endborder = True
+                        f_line = line
+                        break
                 except StopIteration:
                     breaker = False
                     break
@@ -168,8 +177,7 @@ class csv_class:
         n = 0
         breaker = True
         while breaker:
-            # first line of class
-            f_line = dict([[h, csv_dict[h][n]] for h in list(csv_dict.keys())])
+            f_line = dict([[h, csv_dict[h][n]] for h in list(csv_dict.keys())]) # first line of class
             colname = list(f_line.keys())   # names of columns
             line = f_line.copy()    # first line (dict)
             const_lines = dict([[k, []] for k,v in line.items()])  # all lines within class
@@ -179,13 +187,15 @@ class csv_class:
                 try:
                     n += 1
                     line = dict([[h, csv_dict[h][n]] for h in list(csv_dict.keys())])
+                    # if not(line[colname[0]] == f_line[colname[0]]):
+                    #     n -= 1
                 except IndexError:
                     breaker = False
                     break
             yield n, const_lines
 
     @staticmethod
-    def get_classes(csv_stream=None, csv_dict=None, delim=";", level=0):
+    def get_classes(csv_stream=None, csv_dict=None, delim=";", level=0, max_level=3):
         """
         `csv_class.get_classes`: static
         ===
@@ -198,14 +208,12 @@ class csv_class:
         """
         result = []
         names = []
-        if csv_stream is None and csv_dict is None:
-            raise ValueError("One of arguments `csv_stream` or `csv_dict` not specified")
         if csv_stream is not None:
             csv_iter = csv_class.split_table(csv_stream, delim=delim)
         else:
             csv_iter = csv_class.split_dict(csv_dict)
         for _, block in csv_iter:
-            result.append(csv_class(block, level=level))
+            result.append(csv_class(block, level=level, max_level=max_level))
             names.append(result[-1].name)
         return result, names
 
@@ -268,6 +276,15 @@ def make_reference(podl_name):
 if __name__ == "__main__":
     path = input("Specify path for CSV file: ")
     print(path)
-    podl, name = csv_class.get_classes(open(path, encoding='utf-8', newline=""))
+    mlev = input("Maximal level of nesting: ")
+    if not(mlev):
+        mlev = 3
+        print("Default nesting level:", mlev)
+    else:
+        mlev = int(mlev)
+        print("User specified nesting level:", mlev)
+    podl, name = csv_class.get_classes(open(path,
+                                            encoding='utf-8',
+                                            newline=""), max_level=mlev)
     class_name = input("Specify class name: ")
     print(podl[name.index(class_name)])
